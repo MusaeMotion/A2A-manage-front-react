@@ -9,12 +9,14 @@
 # BitSpirit A2A Project agent-client-multiple-web Frontend
 
 - Developed with Ant Design (React)
+- Used with [A2A server project](https://github.com/MusaeMotion/A2A-server-java)
 
-## A2A Protocol Architecture
-
+### Reference Links
 - [A2A Protocol Introduction](https://developers.googleblog.com/zh-hans/a2a-a-new-era-of-agent-interoperability/)
 - [Google A2A GitHub](https://github.com/google/A2A)
-- [Spring AI](https://github.com/spring-projects/spring-ai)
+- [Ant DesIgn X](https://github.com/ant-design/x)
+
+## A2A Protocol Architecture
 
 ![img.png](a2a.png)
 
