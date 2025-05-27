@@ -246,7 +246,7 @@ export default () => {
    * @param task
    */
   const buidlMessageFooter = (task: API.TaskInfo[] | undefined) => {
-    if (!task) {
+    if (task === undefined || task.length === 0) {
       return null;
     }
     return (
