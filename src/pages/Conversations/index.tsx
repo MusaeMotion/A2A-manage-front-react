@@ -274,7 +274,7 @@ export default () => {
   >({
     request: async (requestMessage, { onSuccess, onError, onUpdate }) => {
       try {
-        console.log('requestMessage', sendTypeRef.current);
+        // console.log('requestMessage', sendTypeRef.current);
         // onUpdate 更新当前消息使用，用于流式消息
         if (sendTypeRef.current === 'stream') {
           // 流请求
@@ -446,6 +446,7 @@ export default () => {
             );
             if (conversation.key === conversationId) {
               setConversationId('');
+              setMessages([]);
             }
             return;
           }

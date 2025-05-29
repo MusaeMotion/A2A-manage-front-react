@@ -92,6 +92,20 @@ const renderMessage = (record: any): any => {
       />
     );
   }
+  if (record.status.state === 'failed') {
+    return (
+      <List
+        bordered
+        size="small"
+        dataSource={record.history}
+        renderItem={(message: API.ConversationMessageInfo) => (
+          <List.Item>
+            <List.Item.Meta description={renderPart(message.parts)} />
+          </List.Item>
+        )}
+      />
+    );
+  }
   // submitted, working, input-required.... 都是读取 record.status.message, 这样完成和未完成两个状态数据结构分离开了，并且不同状态存储不一样，这样就减少冗余存储
   return renderPart(record.status.message.parts);
 };
