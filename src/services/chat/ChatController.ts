@@ -1,6 +1,5 @@
 import { request } from '@umijs/max';
-
-const BASE_URL = '/api/chat';
+const BASE_URL = `${process.env.UMI_APP_API_URL}/api/chat`;
 
 /**
  * 发送消息
@@ -16,16 +15,56 @@ export async function sendMessageCall(
   });
 }
 /**
- * 流请求
+ * 发送流请求
+ * @param body
  * @returns
  */
-export function sendMessageStream(body: API.SendMessageRequest) {
+export async function sendMessageStream(
+  body: API.SendMessageRequest,
+): Promise<ReadableStream> {
   const postDataString = JSON.stringify(body);
   const headers = new Headers();
   headers.append('Content-Type', 'application/json');
-  return fetch(`${BASE_URL}/stream`, {
+  const response = await fetch(`${BASE_URL}/stream`, {
     method: 'POST',
     headers: headers,
     body: postDataString,
   });
+  if (!response.ok) {
+    throw new Error(`HTTP 错误: ${response.status} ${response.statusText}`);
+  }
+
+  if (response.body === null) {
+    throw new Error('响应流为空');
+  }
+  return response.body; // 返回 ReadableStream
+}
+
+/**
+ * 订阅通知
+ * @param conversationId
+ * @param inputMessageId
+ * @returns
+ */
+export async function subscribeNotification(
+  conversationId: string,
+  inputMessageId: string,
+): Promise<ReadableStream> {
+  const headers = new Headers();
+  headers.append('Content-Type', 'application/json');
+  const response = await fetch(
+    `${BASE_URL}/notification/${conversationId}/${inputMessageId}`,
+    {
+      method: 'GET',
+      headers: headers,
+    },
+  );
+  if (!response.ok) {
+    throw new Error(`HTTP 错误: ${response.status} ${response.statusText}`);
+  }
+
+  if (response.body === null) {
+    throw new Error('响应流为空');
+  }
+  return response.body; // 返回 ReadableStream
 }

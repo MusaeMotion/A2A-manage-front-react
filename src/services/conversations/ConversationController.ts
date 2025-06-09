@@ -1,6 +1,5 @@
 import { request } from '@umijs/max';
-
-const BASE_URL = '/api/conversation';
+const BASE_URL = `${process.env.UMI_APP_API_URL}/api/conversation`;
 
 /**
  * 交谈列表
@@ -13,7 +12,7 @@ export async function queryConversationList(options?: { [key: string]: any }) {
 }
 
 /**
- * 交谈列表
+ * 根据交谈id获取消息列表
  */
 export async function queryMessageList(
   conversationId: string,
