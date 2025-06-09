@@ -4,9 +4,12 @@ import chat from '@/services/chat';
 import conversations from '@/services/conversations';
 import {
   AppstoreOutlined,
+  CheckOutlined,
   CloudUploadOutlined,
   DeleteOutlined,
   DiscordOutlined,
+  EuroCircleFilled,
+  LoadingOutlined,
   MessageOutlined,
   PlusOutlined,
   SearchOutlined,
@@ -57,7 +60,7 @@ const TaskState = {
   SUBMITTED: '提交中',
   WORKING: '工作中',
   INPUT_REQUIRED: '请完善输入',
-  COMPLETED: '完成',
+  COMPLETED: '完成，结果分析中',
   CANCELED: '取消',
   FAILED: '失败',
   UNKNOWN: '未知状态',
@@ -194,8 +197,8 @@ const getBase64 = (file: FileType): Promise<string> =>
 const defaultValueNotificationMsg = [
   {
     key: 'message',
-    icon: <MessageOutlined style={{ color: 'red' }} />,
-    label: '暂无通知消息',
+    icon: <MessageOutlined />,
+    label: '时刻准备着为你服务',
   },
 ];
 export default () => {
@@ -302,7 +305,7 @@ export default () => {
           conversationId,
           messageId,
         );
-        console.log('notification: 开始读取消息');
+
         for await (const chunk of XStream({
           readableStream: subStream,
         })) {
@@ -313,7 +316,7 @@ export default () => {
             setNotificationMsg([
               {
                 key: 'message',
-                icon: <MessageOutlined style={{ color: 'red' }} />,
+                icon: <LoadingOutlined />,
                 label: `智能体：${metadata.agentName} 状态：${stateText}`,
               },
             ]);
@@ -322,7 +325,13 @@ export default () => {
         }
         // 处理 subStream，例如订阅通知
       } catch (error) {
-        console.error('通知订阅失败:', error);
+        setNotificationMsg([
+          {
+            key: 'message',
+            icon: <EuroCircleFilled />,
+            label: `智能体出错了`,
+          },
+        ]);
       }
     }
   };
@@ -335,7 +344,13 @@ export default () => {
     Record<string, any>
   >({
     request: async (requestMessage, { onSuccess, onError, onUpdate }) => {
-      setNotificationMsg(defaultValueNotificationMsg);
+      setNotificationMsg([
+        {
+          key: 'message',
+          icon: <LoadingOutlined />,
+          label: `智能体工作中...`,
+        },
+      ]);
 
       notification(requestMessage.message).catch((error) => {
         console.error('通知处理失败:', error);
@@ -379,6 +394,13 @@ export default () => {
             });
             if (metadata.finishReason === 'STOP') {
               setIsRequesting(false); // 流结束时设置为 false
+              setNotificationMsg([
+                {
+                  key: 'message',
+                  icon: <CheckOutlined />,
+                  label: `智能体工作完成。`,
+                },
+              ]);
             }
           }
         }
@@ -391,6 +413,13 @@ export default () => {
           if (response.code === 0) {
             const { data: newMessage } = response;
             onSuccess([{ ...newMessage.result, typing: true }]);
+            setNotificationMsg([
+              {
+                key: 'message',
+                icon: <CheckOutlined />,
+                label: `智能体工作完成。`,
+              },
+            ]);
             return;
           }
           message.error(response.msg);
