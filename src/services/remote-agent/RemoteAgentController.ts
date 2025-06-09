@@ -1,6 +1,6 @@
 import { request } from '@umijs/max';
 
-const BASE_URL = '/api/remote-agent';
+const BASE_URL = `${process.env.UMI_APP_API_URL}/api/remote-agent`;
 
 /**
  * 智能体分页

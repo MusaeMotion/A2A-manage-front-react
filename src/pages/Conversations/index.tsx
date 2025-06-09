@@ -4,10 +4,10 @@ import chat from '@/services/chat';
 import conversations from '@/services/conversations';
 import {
   AppstoreOutlined,
-  BulbOutlined,
   CloudUploadOutlined,
   DeleteOutlined,
   DiscordOutlined,
+  MessageOutlined,
   PlusOutlined,
   SearchOutlined,
   SettingOutlined,
@@ -51,6 +51,18 @@ import markdownit from 'markdown-it';
 import React from 'react';
 import { v4 as uuidv4 } from 'uuid';
 const { Panel } = Collapse;
+
+// 任务状态
+const TaskState = {
+  SUBMITTED: '提交中',
+  WORKING: '工作中',
+  INPUT_REQUIRED: '请完善输入',
+  COMPLETED: '完成',
+  CANCELED: '取消',
+  FAILED: '失败',
+  UNKNOWN: '未知状态',
+};
+
 // messageId 的 map key
 const MESSAGE_ID = 'message_id';
 const CONVERSATION_ID = 'conversation_id';
@@ -60,7 +72,8 @@ const {
   createConversation,
   queryMessageList,
 } = conversations.ConversationController;
-const { sendMessageCall, sendMessageStream } = chat.ChatController;
+const { sendMessageCall, sendMessageStream, subscribeNotification } =
+  chat.ChatController;
 // @ts-ignore
 const md = markdownit({ html: true, breaks: true });
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -177,8 +190,14 @@ const getBase64 = (file: FileType): Promise<string> =>
     reader.onload = () => resolve(reader.result as string);
     reader.onerror = (error) => reject(error);
   });
-
-// TODO 可以使用 15912135-2401-4caf-a530-dc2cb7f3f63b 查看任务
+// 通知默认值消息
+const defaultValueNotificationMsg = [
+  {
+    key: 'message',
+    icon: <MessageOutlined style={{ color: 'red' }} />,
+    label: '暂无通知消息',
+  },
+];
 export default () => {
   const [curTasks, setCurTasks] = React.useState<API.TaskInfo[]>([]);
   const [conversations, setConversations] = React.useState<
@@ -188,9 +207,13 @@ export default () => {
   const [loading, setLoading] = React.useState<boolean>(false);
   const [inputText, setInputText] = React.useState<string>('');
   const [attachment, setAttachment] = React.useState<API.FileContent>();
-  const [sendType, setSendType] = React.useState<'call' | 'stream'>('call');
+  const [sendType, setSendType] = React.useState<'call' | 'stream'>('stream');
   const sendTypeRef = React.useRef(sendType);
   const taskTableModalRef = React.useRef<{ showModal: () => void }>(null);
+  const [isRequesting, setIsRequesting] = React.useState(false);
+  const [notificationMsg, setNotificationMsg] = React.useState(
+    defaultValueNotificationMsg,
+  );
   // 初始化对话列表
   React.useEffect(() => {
     const loadConversations = async () => {
@@ -265,30 +288,98 @@ export default () => {
     );
   };
 
+  /**
+   * sse 通知接受
+   * @param message
+   */
+  const notification = async (message: ConversationMessage) => {
+    const { metadata } = message;
+    if (metadata) {
+      const messageId = metadata[MESSAGE_ID];
+      const conversationId = metadata[CONVERSATION_ID];
+      try {
+        const subStream = await subscribeNotification(
+          conversationId,
+          messageId,
+        );
+        console.log('notification: 开始读取消息');
+        for await (const chunk of XStream({
+          readableStream: subStream,
+        })) {
+          if (chunk.data !== 'ping') {
+            const { status, metadata } = JSON.parse(chunk.data);
+            const curState = status.state.toUpperCase() as string;
+            const stateText = TaskState[curState as keyof typeof TaskState];
+            setNotificationMsg([
+              {
+                key: 'message',
+                icon: <MessageOutlined style={{ color: 'red' }} />,
+                label: `智能体：${metadata.agentName} 状态：${stateText}`,
+              },
+            ]);
+          }
+          console.log('subStream', chunk);
+        }
+        // 处理 subStream，例如订阅通知
+      } catch (error) {
+        console.error('通知订阅失败:', error);
+      }
+    }
+  };
   // useXAgent 请求发送消息
   // 发送请求时候的消息格式
+  // 流程： 请求响应之后-> 响应消息-> 转换到自己的消息格式(AgentMessage)-> ParsedMessage 消息格式（交给Bubble控件渲染），->Bubble控件根据 不同的角色可以定义不同渲染方式
   const [agent] = useXAgent<
     ConversationMessage,
     { message: ConversationMessage },
     Record<string, any>
   >({
     request: async (requestMessage, { onSuccess, onError, onUpdate }) => {
+      setNotificationMsg(defaultValueNotificationMsg);
+
+      notification(requestMessage.message).catch((error) => {
+        console.error('通知处理失败:', error);
+      });
+
       try {
-        // console.log('requestMessage', sendTypeRef.current);
-        // onUpdate 更新当前消息使用，用于流式消息
+        setIsRequesting(true);
         if (sendTypeRef.current === 'stream') {
           // 流请求
           const responseStream = await sendMessageStream({
             params: requestMessage.message,
           });
+
+          let text = '';
+          setIsRequesting(false); // 流结束时设置为 false
           for await (const chunk of XStream({
-            readableStream:
-              responseStream.body === null
-                ? new ReadableStream()
-                : responseStream.body,
+            readableStream: responseStream,
           })) {
-            const response = JSON.parse(chunk.data);
-            onSuccess([{ ...response.result, typing: true }]);
+            const responseData = JSON.parse(chunk.data);
+            const { metadata, parts, task } = responseData.result;
+
+            // eslint-disable-next-line @typescript-eslint/no-loop-func
+            parts.forEach((part: any) => {
+              const curMsg: ConversationMessage = {
+                role: 'agent',
+                parts: [],
+                metadata: metadata,
+                typing: false,
+                task: task,
+              };
+              if (part.type === 'text') {
+                text += part.text;
+                const tempPart = {
+                  type: 'text' as API.PartType,
+                  metadata: {},
+                  text: text,
+                };
+                curMsg.parts.push(tempPart);
+              }
+              onUpdate(curMsg);
+            });
+            if (metadata.finishReason === 'STOP') {
+              setIsRequesting(false); // 流结束时设置为 false
+            }
           }
         }
         if (sendTypeRef.current === 'call') {
@@ -296,6 +387,7 @@ export default () => {
           const response = await sendMessageCall({
             params: requestMessage.message,
           });
+          setIsRequesting(false); // 请求结束时设置为 false
           if (response.code === 0) {
             const { data: newMessage } = response;
             onSuccess([{ ...newMessage.result, typing: true }]);
@@ -304,6 +396,7 @@ export default () => {
           message.error(response.msg);
         }
       } catch (error) {
+        setIsRequesting(false);
         onError(new Error('请求发送失败'));
       }
     },
@@ -321,41 +414,45 @@ export default () => {
         status: 'success',
       },
     ],
+    // 利用默认消息 status 触发消息加载效果
     requestPlaceholder: {
       role: 'agent',
-      parts: [{ type: 'text', text: '等待AI处理中？' }],
+      parts: [{ type: 'text', text: 'AI消息处理中' }],
+      status: 'loading',
     },
     // 兜底回调，出现错误时调用
     requestFallback: {
       role: 'agent',
       parts: [{ type: 'text', text: '请求失败，请重试...' }],
+      status: 'error',
     },
-    // 转换 ChatMessage 消息 BubbleMessage
-    parser: (chatMessage) => {
-      if (chatMessage.parts && chatMessage.parts?.length > 0) {
-        const list = chatMessage.parts;
+    // 转换 AgentMessage to ParsedMessage
+    parser: (agentMessage) => {
+      if (agentMessage.parts && agentMessage.parts?.length > 0) {
+        const list = agentMessage.parts;
         const placement: BubbleProps['placement'] =
-          chatMessage.role === 'agent' ? 'start' : 'end';
+          agentMessage.role === 'agent' ? 'start' : 'end';
         return (list || []).map((part) => ({
           // 角色是具体角色和消息类型，控制不同消息不同的渲染做预留，如果没有消息元数据，则没有消息id, 随机生成一个
-          id: chatMessage.metadata
-            ? chatMessage.metadata[MESSAGE_ID]
+          id: agentMessage.metadata
+            ? agentMessage.metadata[MESSAGE_ID]
             : uuidv4(),
           role: part.type,
           avatar:
-            chatMessage.role === 'agent'
+            agentMessage.role === 'agent'
               ? { icon: <DiscordOutlined />, style: { background: '#fde3cf' } }
               : { icon: <UserOutlined />, style: { background: '#87d068' } },
           placement,
           style:
-            chatMessage.role === 'agent'
+            agentMessage.role === 'agent'
               ? {
                   maxWidth: 1200,
                 }
               : {},
-          typing: chatMessage.typing ? { step: 5, interval: 20 } : undefined,
+          typing: agentMessage.typing ? { step: 5, interval: 20 } : undefined,
           content: partToContent(part),
-          footer: buidlMessageFooter(chatMessage.task),
+          footer: buidlMessageFooter(agentMessage.task),
+          status: agentMessage.status,
         }));
       }
       console.log('出现不符合规范的消息格式.');
@@ -520,27 +617,18 @@ export default () => {
                 <Bubble.List
                   roles={roles}
                   style={{ flex: 1 }}
-                  items={parsedMessages.map(({ id, message, status }) => ({
+                  items={parsedMessages.map(({ id, message }) => ({
                     key: id,
-                    loading: status === 'loading',
+                    loading: message.status === 'loading',
                     ...message,
                   }))}
                 />
-                <Prompts
-                  items={[
-                    {
-                      key: '1',
-                      icon: <BulbOutlined style={{ color: '#FFD700' }} />,
-                      label:
-                        '请先分析一下这张图片的内容，然后生成一张新的图片。',
-                    },
-                  ]}
-                />
+                <Prompts items={notificationMsg} />
                 <Sender
                   value={inputText}
                   onChange={setInputText}
                   onSubmit={handleSendMessage}
-                  loading={agent.isRequesting()}
+                  loading={isRequesting}
                   autoSize={{ minRows: 2, maxRows: 6 }}
                   placeholder="回车键发送消息"
                   header={headerNode}

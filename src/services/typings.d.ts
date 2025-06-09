@@ -51,6 +51,8 @@ declare namespace API {
     metadata?: Record<string, any>;
     typing?: boolean;
     task?: TaskInfo[];
+    // 状态
+    status?: string;
   }
   /**
    * 生成的工件

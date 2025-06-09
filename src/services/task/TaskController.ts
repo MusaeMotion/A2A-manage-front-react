@@ -1,7 +1,6 @@
 import { request } from '@umijs/max';
 
-const BASE_URL = '/api/task';
-
+const BASE_URL = `${process.env.UMI_APP_API_URL}/api/task`;
 /**
  * 智能体分页
  * @param params
