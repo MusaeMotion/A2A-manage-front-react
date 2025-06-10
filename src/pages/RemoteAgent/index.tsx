@@ -1,5 +1,10 @@
 import services from '@/services/remote-agent';
-import { DeleteOutlined } from '@ant-design/icons';
+import {
+  DeleteOutlined,
+  EditOutlined,
+  ReloadOutlined,
+  SaveOutlined,
+} from '@ant-design/icons';
 import {
   ActionType,
   FooterToolbar,
@@ -9,14 +14,29 @@ import {
   ProDescriptionsItemProps,
   ProTable,
 } from '@ant-design/pro-components';
-import { Button, List, message, Space, Tooltip, Typography } from 'antd';
+import {
+  Button,
+  Input,
+  List,
+  message,
+  Space,
+  Switch,
+  Tooltip,
+  Typography,
+} from 'antd';
 import React, { useRef, useState } from 'react';
 import CreateForm from './components/CreateForm';
 import DescriptionsModel from './components/DescriptionsModal';
-
+const { TextArea } = Input;
 const { Text } = Typography;
-const { registerRemoteAgent, queryRemoteAgentList, deleteRemoteAgent } =
-  services.RemoteAgentController;
+const {
+  registerRemoteAgent,
+  queryRemoteAgentList,
+  deleteRemoteAgent,
+  changeRemoteAgentEnable,
+  reRegisterRemoteAgent,
+  updateRemoteAgent,
+} = services.RemoteAgentController;
 
 /**
  * 添加节点
@@ -57,6 +77,25 @@ const handleRemove = async (selectedRows: API.RemoteAgentInfo[]) => {
     return false;
   }
 };
+/**
+ * 切换智能体状态
+ * @param record
+ * @param enable
+ * @returns
+ */
+const changeEnable = async (id: string) => {
+  await changeRemoteAgentEnable(id);
+};
+
+/**
+ * 切换智能体状态
+ * @param record
+ * @param enable
+ * @returns
+ */
+const handleReload = async (id: string) => {
+  await reRegisterRemoteAgent(id);
+};
 
 const TableList: React.FC<unknown> = () => {
   const [createModalVisible, handleModalVisible] = useState<boolean>(false);
@@ -65,10 +104,71 @@ const TableList: React.FC<unknown> = () => {
   const [selectedRow, setSelectedRow] = useState(null);
   const actionRef = useRef<ActionType>();
   const [selectedRowsState, setSelectedRows] = useState<any[]>([]);
+  const [editingKey, setEditingKey] = useState<React.Key | null>(null);
 
+  const [dataSource, setDataSource] = React.useState<
+    API.PartialRemoteAgentInfo[]
+  >([]);
   const handleSkillsClick = (record: any, visible: boolean) => {
     setSelectedRow(record);
     handleSkillsModalVisible(visible);
+  };
+
+  /**
+   * 构建 action
+   * @param record
+   * @param action
+   * @returns
+   */
+  const buildActionBtn = (record: any, action: any) => {
+    const btns = [];
+    if (editingKey) {
+      btns.push(
+        <Button
+          key="save"
+          type="primary"
+          icon={<SaveOutlined />}
+          onClick={() => {
+            setEditingKey(null);
+            updateRemoteAgent(record.id, record).then(() => {
+              action?.reload();
+              message.success('保存成功');
+            });
+          }}
+        >
+          保存编辑
+        </Button>,
+      );
+    } else {
+      btns.push(
+        <Button
+          key="edit"
+          danger
+          icon={<EditOutlined />}
+          onClick={() => {
+            setEditingKey(record.id as string);
+          }}
+        >
+          编辑
+        </Button>,
+      );
+    }
+    btns.push(
+      <Button
+        key="reload"
+        color="primary"
+        variant="outlined"
+        icon={<ReloadOutlined />}
+        onClick={() =>
+          handleReload(record.id as string).then(() => {
+            action?.reload();
+          })
+        }
+      >
+        重载
+      </Button>,
+    );
+    return btns;
   };
 
   const columns: ProColumns<API.PartialRemoteAgentInfo>[] = [
@@ -94,6 +194,26 @@ const TableList: React.FC<unknown> = () => {
       dataIndex: 'description',
       valueType: 'text',
       hideInForm: true,
+      render: (text, record) => {
+        const editable = editingKey === record.id;
+        return editable ? (
+          <TextArea
+            rows={4}
+            placeholder="AgentCard的描述"
+            value={record.description}
+            onChange={(e) => {
+              const newData = [...dataSource];
+              const index = newData.findIndex((item) => item.id === record.id);
+              if (index > -1) {
+                newData[index].description = e.target.value;
+                setDataSource(newData);
+              }
+            }}
+          />
+        ) : (
+          text
+        );
+      },
     },
     {
       title: '访问地址',
@@ -112,6 +232,33 @@ const TableList: React.FC<unknown> = () => {
         addonBefore: 'http://',
       },
       search: false,
+    },
+    {
+      title: '启用',
+      dataIndex: 'enable',
+      valueType: 'text',
+      search: false,
+      render: (text, record, _, action) => {
+        return (
+          <Switch
+            checked={record.enable}
+            onChange={(checked) => {
+              changeEnable(record.id as string).then(() => {
+                const newData = [...dataSource];
+                const index = newData.findIndex(
+                  (item) => item.id === record.id,
+                );
+                if (index > -1) {
+                  newData[index].enable = checked;
+                  setDataSource(newData);
+                }
+                action?.reload();
+              });
+            }}
+          />
+        );
+      },
+      hideInForm: true,
     },
     {
       title: '版本号',
@@ -224,6 +371,14 @@ const TableList: React.FC<unknown> = () => {
         );
       },
     },
+    {
+      title: '操作',
+      key: 'action',
+      valueType: 'option',
+      width: 220,
+      hideInForm: false,
+      render: (text, record, _, action) => [buildActionBtn(record, action)],
+    },
   ];
 
   return (
@@ -256,6 +411,7 @@ const TableList: React.FC<unknown> = () => {
             sorter,
             filter,
           });
+          setDataSource(data?.list || []);
           return {
             data: data?.list || [],
             code: code === 0,

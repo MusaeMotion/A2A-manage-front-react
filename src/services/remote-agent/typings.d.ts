@@ -12,7 +12,7 @@ declare namespace API {
   interface RemoteAgentInfo {
     id: string;
     name?: string;
-    description?: string;
+    description: string;
     url?: string;
     version?: string;
     documentationUrl?: string;
@@ -22,6 +22,7 @@ declare namespace API {
     defaultInputModes: MediaType[];
     defaultOutputModes: MediaType[];
     skills: AgentSkillInfo[];
+    enable: boolean;
   }
 
   type PartialRemoteAgentInfo = Partial<RemoteAgentInfo>;

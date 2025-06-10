@@ -14,10 +14,11 @@ const DescriptionsModel: React.FC<PropsWithChildren<CreateFormProps>> = (
   return (
     <Modal
       destroyOnClose
-      width={600}
+      width={800}
       open={modalVisible}
       onCancel={() => onCancel()}
       footer={null}
+      closeIcon={null}
     >
       {props.children}
     </Modal>

@@ -40,7 +40,6 @@ const TaskTableModal = React.forwardRef(
   (props: Props, ref: React.Ref<{ showModal: () => void }>) => {
     const { tasks } = props;
     const [open, setOpen] = React.useState(false);
-    // console.log('tasks', tasks);
     const showModal = () => {
       setOpen(true);
     };
@@ -59,6 +58,7 @@ const TaskTableModal = React.forwardRef(
         footer={false}
       >
         <Table<API.TaskInfo>
+          rowKey="id"
           bordered
           pagination={false}
           columns={columns}
