@@ -65,3 +65,40 @@ export async function deleteRemoteAgent(
     ...(options || {}),
   });
 }
+/**
+ * 切换智能体可用状态
+ * @param params
+ * @param options
+ * @returns
+ */
+export async function changeRemoteAgentEnable(id: string) {
+  return request<API.Result_Common>(BASE_URL + `/enable/${id}`, {
+    method: 'PUT',
+  });
+}
+
+/**
+ * 重新刷新智能体，重新注册
+ * @param id
+ * @returns
+ */
+export async function reRegisterRemoteAgent(id: string) {
+  return request<API.Result_Common>(BASE_URL + `/re-register/${id}`, {
+    method: 'PUT',
+  });
+}
+
+/**
+ * 修改智能体
+ * @param id
+ * @returns
+ */
+export async function updateRemoteAgent(id: string, body: any) {
+  return request<API.Result_Common>(BASE_URL + `/${id}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    data: body,
+  });
+}
