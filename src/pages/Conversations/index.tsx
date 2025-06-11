@@ -392,7 +392,11 @@ export default () => {
               }
               onUpdate(curMsg);
             });
-            if (metadata.finishReason === 'STOP') {
+            // 如果 metadata.finishReason 直接返回的内容，有可能有错误，或者需要用户输入
+            if (
+              (metadata.finishReason && metadata.finishReason === 'STOP') ||
+              !metadata.finishReason
+            ) {
               setIsRequesting(false); // 流结束时设置为 false
               setNotificationMsg([
                 {
