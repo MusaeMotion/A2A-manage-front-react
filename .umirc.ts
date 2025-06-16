@@ -35,6 +35,12 @@ export default defineConfig({
       component: './RemoteAgent',
       icon: 'DiscordOutlined',
     },
+    {
+      name: 'HostAgent设置',
+      path: '/host-agent-setting',
+      component: './HostAgentSetting',
+      icon: 'SettingOutlined',
+    },
   ],
   npmClient: 'pnpm',
   mock: false,

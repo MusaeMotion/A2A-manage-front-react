@@ -21,6 +21,7 @@ declare namespace API {
     authentication: AgentAuthenticationInfo;
     defaultInputModes: MediaType[];
     defaultOutputModes: MediaType[];
+    agentPrompt: string;
     skills: AgentSkillInfo[];
     enable: boolean;
   }
@@ -36,6 +37,7 @@ declare namespace API {
     streaming?: boolean;
     pushNotifications?: boolean;
     stateTransitionHistory?: boolean;
+    modifyPrompt?: boolean;
   }
 
   interface AgentAuthenticationInfo {
