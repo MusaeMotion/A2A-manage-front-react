@@ -232,6 +232,25 @@ const TableList: React.FC<unknown> = () => {
         addonBefore: 'http://',
       },
       search: false,
+      render: (text, record) => {
+        const editable = editingKey === record.id;
+        return editable ? (
+          <Input
+            placeholder="智能体地址"
+            value={record.url}
+            onChange={(e) => {
+              const newData = [...dataSource];
+              const index = newData.findIndex((item) => item.id === record.id);
+              if (index > -1) {
+                newData[index].url = e.target.value;
+                setDataSource(newData);
+              }
+            }}
+          />
+        ) : (
+          text
+        );
+      },
     },
     {
       title: '启用',
@@ -310,7 +329,6 @@ const TableList: React.FC<unknown> = () => {
     {
       title: '支持通知',
       dataIndex: ['capabilities', 'pushNotifications'],
-      valueType: 'select',
       fieldProps: {
         options: [
           {
@@ -325,13 +343,65 @@ const TableList: React.FC<unknown> = () => {
       },
       search: false,
       hideInForm: true,
-      initialValue: false, // 设置默认值为 false
+      initialValue: false,
+      valueType: 'switch', // 使用 switch 类型
+      render: (text, record) => {
+        const editable = editingKey === record.id; // 判断当前行是否处于编辑状态
+        return editable ? (
+          <Switch
+            checked={record['capabilities']?.['pushNotifications'] || false} // 确保不会因为 undefined 报错
+            onChange={(checked) => {
+              const newData = [...dataSource];
+              const index = newData.findIndex((item) => item.id === record.id);
+              if (index > -1) {
+                if (newData[index]['capabilities']) {
+                  newData[index]['capabilities']['pushNotifications'] = checked;
+                }
+                setDataSource(newData);
+              }
+            }}
+          />
+        ) : record['capabilities']?.['pushNotifications'] ? (
+          '支持'
+        ) : (
+          '不支持'
+        ); // 如果不是编辑状态，显示文本内容
+      },
     },
     {
       title: '授权方式',
       dataIndex: ['authentication', 'schemes'],
       search: false,
       hideInForm: true,
+    },
+    {
+      title: '修改提示词',
+      dataIndex: ['capabilities', 'modifyPrompt'],
+      search: false,
+      hideInForm: true,
+      valueType: 'text',
+      render: (text, record) => {
+        const editable = editingKey === record.id; // 判断当前行是否处于编辑状态
+        return editable && record['capabilities']?.['modifyPrompt'] ? (
+          <TextArea
+            rows={20}
+            placeholder="远程智能体提示词"
+            value={record.agentPrompt}
+            onChange={(e) => {
+              const newData = [...dataSource];
+              const index = newData.findIndex((item) => item.id === record.id);
+              if (index > -1) {
+                newData[index].agentPrompt = e.target.value;
+                setDataSource(newData);
+              }
+            }}
+          />
+        ) : record['capabilities']?.['modifyPrompt'] ? (
+          '支持'
+        ) : (
+          '不支持'
+        ); // 如果不是编辑状态，显示文本内容
+      },
     },
     {
       title: '智能体能力',

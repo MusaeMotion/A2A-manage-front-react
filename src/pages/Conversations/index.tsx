@@ -74,6 +74,7 @@ const {
   deleteConversation,
   createConversation,
   queryMessageList,
+  deleteOtherByConversation,
 } = conversations.ConversationController;
 const { sendMessageCall, sendMessageStream, subscribeNotification } =
   chat.ChatController;
@@ -260,7 +261,7 @@ export default () => {
     if (conversations.length > 0) {
       return conversations.map((conversation) => ({
         key: conversation.id,
-        label: conversation.name || `对话ID - ${conversation.id}`,
+        label: conversation.name || `${conversation.id}`,
       }));
     }
   };
@@ -558,7 +559,13 @@ export default () => {
         icon: <SearchOutlined />,
       },
       {
-        label: '删除',
+        label: '删除记录',
+        key: 'delete_other',
+        icon: <DeleteOutlined />,
+        danger: true,
+      },
+      {
+        label: '删除交谈',
         key: 'delete',
         icon: <DeleteOutlined />,
         danger: true,
@@ -582,7 +589,23 @@ export default () => {
           }
           message.error(response.msg);
         } catch (error) {
-          message.error('创建对话失败');
+          message.error('删除失败');
+        } finally {
+          setLoading(false);
+        }
+      }
+      if (menuInfo.key === 'delete_other') {
+        setLoading(true);
+        menuInfo.domEvent.stopPropagation(); // 阻止事件冒泡
+        try {
+          const response = await deleteOtherByConversation(conversation.key);
+          if (response.code === 0) {
+            setMessages([]);
+            return;
+          }
+          message.error(response.msg);
+        } catch (error) {
+          message.error('删除失败');
         } finally {
           setLoading(false);
         }
@@ -636,7 +659,11 @@ export default () => {
             ) : (
               <>
                 <Conversations
-                  style={{ width: 380 }}
+                  style={{
+                    maxWidth: '250px', // 设置最大宽度
+                    overflow: 'hidden', // 隐藏超出部分
+                    textOverflow: 'ellipsis', // 显示省略号
+                  }}
                   activeKey={conversationId}
                   items={handleConversationItems(conversations)}
                   menu={menuConfig}

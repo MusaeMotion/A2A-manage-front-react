@@ -50,3 +50,19 @@ export async function deleteConversation(
     ...(options || {}),
   });
 }
+
+/**
+ * 删除交谈以外的其他信息
+ * @param id
+ * @param options
+ * @returns
+ */
+export async function deleteOtherByConversation(
+  id?: string,
+  options?: { [key: string]: any },
+) {
+  return request<API.Result_Common>(`${BASE_URL}/other/${id}`, {
+    method: 'DELETE',
+    ...(options || {}),
+  });
+}
