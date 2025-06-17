@@ -45,6 +45,7 @@ import {
   GetProp,
   Image,
   message,
+  Modal,
   Radio,
   Space,
   Typography,
@@ -322,7 +323,7 @@ export default () => {
               },
             ]);
           }
-          console.log('subStream', chunk);
+          // console.log('subStream', chunk);
         }
         // 处理 subStream，例如订阅通知
       } catch (error) {
@@ -572,43 +573,58 @@ export default () => {
       },
     ],
     onClick: async (menuInfo) => {
+      menuInfo.domEvent.stopPropagation(); // 阻止事件冒泡
       if (menuInfo.key === 'delete') {
-        setLoading(true);
-        menuInfo.domEvent.stopPropagation(); // 阻止事件冒泡
-        try {
-          const response = await deleteConversation(conversation.key);
-          if (response.code === 0) {
-            setConversations(
-              conversations.filter((item) => item.id !== conversation.key),
-            );
-            if (conversation.key === conversationId) {
-              setConversationId('');
-              setMessages([]);
+        Modal.confirm({
+          title: '确认删除',
+          content: '确定要删除此交谈吗？',
+          onOk: async () => {
+            setLoading(true);
+            menuInfo.domEvent.stopPropagation(); // 阻止事件冒泡
+            try {
+              const response = await deleteConversation(conversation.key);
+              if (response.code === 0) {
+                setConversations(
+                  conversations.filter((item) => item.id !== conversation.key),
+                );
+                if (conversation.key === conversationId) {
+                  setConversationId('');
+                  setMessages([]);
+                }
+                return;
+              }
+              message.error(response.msg);
+            } catch (error) {
+              message.error('删除失败');
+            } finally {
+              setLoading(false);
             }
-            return;
-          }
-          message.error(response.msg);
-        } catch (error) {
-          message.error('删除失败');
-        } finally {
-          setLoading(false);
-        }
+          },
+        });
       }
       if (menuInfo.key === 'delete_other') {
-        setLoading(true);
-        menuInfo.domEvent.stopPropagation(); // 阻止事件冒泡
-        try {
-          const response = await deleteOtherByConversation(conversation.key);
-          if (response.code === 0) {
-            setMessages([]);
-            return;
-          }
-          message.error(response.msg);
-        } catch (error) {
-          message.error('删除失败');
-        } finally {
-          setLoading(false);
-        }
+        Modal.confirm({
+          title: '确认删除',
+          content: '确定要删除此记录吗？',
+          onOk: async () => {
+            setLoading(true);
+            try {
+              const response = await deleteOtherByConversation(
+                conversation.key,
+              );
+              if (response.code === 0) {
+                setMessages([]);
+                message.success('删除成功');
+              } else {
+                message.error(response.msg);
+              }
+            } catch (error) {
+              message.error('删除失败');
+            } finally {
+              setLoading(false);
+            }
+          },
+        });
       }
       if (menuInfo.key === 'showTask') {
         const search = { conversationId: conversation.key };
