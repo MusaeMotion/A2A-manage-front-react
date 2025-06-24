@@ -95,7 +95,7 @@ const TableList: React.FC<unknown> = () => {
             key: 'prompt',
             children: (
               <Form
-                labelCol={{ span: 4 }}
+                labelCol={{ span: 1 }}
                 wrapperCol={{ span: 14 }}
                 layout="horizontal"
               >
@@ -128,7 +128,7 @@ const TableList: React.FC<unknown> = () => {
                 {chatModelMode?.providerMode ? (
                   <Descriptions.Item label="基座模型更换">
                     <Select
-                      style={{ width: 120 }}
+                      style={{ width: 200 }}
                       onChange={handleChangeChatModel}
                       value={chatModelMode.defaultChatModelKey}
                       fieldNames={{ label: 'name', value: 'name' }}
