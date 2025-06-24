@@ -54,11 +54,12 @@ import {
 import markdownit from 'markdown-it';
 import React from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import RunningModal, { RunningModalRef } from './components/RunningModal';
 const { Panel } = Collapse;
 
 // 任务状态
 const TaskState = {
-  SUBMITTED: '提交中',
+  SUBMITTED: '已提交，运行中....',
   WORKING: '工作中',
   INPUT_REQUIRED: '请完善输入',
   COMPLETED: '完成，结果分析中',
@@ -88,7 +89,11 @@ const renderMarkdown: BubbleProps['messageRender'] = (content: string) => (
     <div dangerouslySetInnerHTML={{ __html: md.render(content) }} />
   </Typography>
 );
-
+/**
+ * 获取深度思考的内容
+ * @param str
+ * @returns
+ */
 function getThinkContent(str: string) {
   const regex = /<think>([\s\S]*?)<\/think>/g;
   let result = [];
@@ -98,6 +103,11 @@ function getThinkContent(str: string) {
   }
   return result[0];
 }
+/**
+ * 获取深度思考之后的内容
+ * @param str
+ * @returns
+ */
 function getAfterThinkContent(str: string) {
   const regex = /<\/think>([\s\S]*)/g;
   const match = regex.exec(str);
@@ -105,6 +115,11 @@ function getAfterThinkContent(str: string) {
 }
 
 // @antv/gpt-vis 的markdown 渲染
+/**
+ * markdown 内容组件渲染
+ * @param content
+ * @returns
+ */
 const RenderMarkdown: BubbleProps['messageRender'] = (content) => {
   if (content.indexOf('<think>') > -1)
     return (
@@ -120,6 +135,11 @@ const RenderMarkdown: BubbleProps['messageRender'] = (content) => {
   return <GPTVis>{content}</GPTVis>;
 };
 
+/**
+ * 文件渲染
+ * @param content
+ * @returns
+ */
 const RenderFile: BubbleProps['messageRender'] = (content: any) => {
   if (content.mimeType === null || content.mimeType.indexOf('image') > -1)
     return (
@@ -187,6 +207,9 @@ const partToContent = (part: API.Part) => {
   return '没有找到合适的处理类型';
 };
 
+/**
+ * 上传文件相关
+ */
 type FileType = Parameters<GetProp<UploadProps, 'beforeUpload'>>[0];
 const getBase64 = (file: FileType): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -195,14 +218,17 @@ const getBase64 = (file: FileType): Promise<string> =>
     reader.onload = () => resolve(reader.result as string);
     reader.onerror = (error) => reject(error);
   });
-// 通知默认值消息
-const defaultValueNotificationMsg = [
+// 默认prompts内容
+const defaultPrompts = [
   {
     key: 'message',
     icon: <MessageOutlined />,
     label: '时刻准备着为你服务',
   },
 ];
+/**
+ * 组件定义开始
+ */
 export default () => {
   const [curTasks, setCurTasks] = React.useState<API.TaskInfo[]>([]);
   const [conversations, setConversations] = React.useState<
@@ -216,9 +242,11 @@ export default () => {
   const sendTypeRef = React.useRef(sendType);
   const taskTableModalRef = React.useRef<{ showModal: () => void }>(null);
   const [isRequesting, setIsRequesting] = React.useState(false);
-  const [notificationMsg, setNotificationMsg] = React.useState(
-    defaultValueNotificationMsg,
-  );
+  const [prompts, setPrompts] = React.useState(defaultPrompts);
+  const [runningModalShow, setRunningModalShow] =
+    React.useState<boolean>(false);
+  const runningModalRef = React.useRef<RunningModalRef>(null);
+
   // 初始化对话列表
   React.useEffect(() => {
     const loadConversations = async () => {
@@ -266,8 +294,49 @@ export default () => {
       }));
     }
   };
+  /**
+   * 显示任务运行结果
+   */
   const showTaskModal = () => {
     taskTableModalRef.current?.showModal();
+  };
+  /**
+   * 设置通知
+   * @param icon
+   * @param label
+   */
+  const setPromptContent = (
+    promptName: string,
+    icon: JSX.Element,
+    label: string,
+  ) => {
+    const retPrompt = prompts.find((item) => item.key === promptName);
+    if (retPrompt) {
+      retPrompt.icon = icon;
+      retPrompt.label = label;
+      setPrompts([retPrompt]);
+    }
+  };
+
+  /**
+   * 设置通知
+   * @param promptName
+   * @param icon
+   * @param label
+   */
+  const setNotification = (icon: JSX.Element, label: string) => {
+    setPromptContent('message', icon, label);
+  };
+
+  /**
+   * prompt 点击
+   * @param info
+   */
+  const hanldePromptClick = (info: { data: any }) => {
+    const { key } = info.data;
+    if (key === 'message') {
+      setRunningModalShow(true);
+    }
   };
   /**
    * 构建消息footer
@@ -294,46 +363,79 @@ export default () => {
   };
 
   /**
-   * sse 通知接受
+   * sse消息处理
    * @param message
    */
-  const notification = async (message: ConversationMessage) => {
+  const handleSseMessages = async (message: ConversationMessage) => {
     const { metadata } = message;
     if (metadata) {
       const messageId = metadata[MESSAGE_ID];
       const conversationId = metadata[CONVERSATION_ID];
+
+      let curItem: any = null;
+
       try {
         const subStream = await subscribeNotification(
           conversationId,
           messageId,
         );
 
+        let runningContent = '';
         for await (const chunk of XStream({
           readableStream: subStream,
         })) {
           if (chunk.data !== 'ping') {
-            const { status, metadata } = JSON.parse(chunk.data);
-            const curState = status.state.toUpperCase() as string;
-            const stateText = TaskState[curState as keyof typeof TaskState];
-            setNotificationMsg([
-              {
-                key: 'message',
-                icon: <LoadingOutlined />,
-                label: `智能体：${metadata.agentName} 状态：${stateText}`,
-              },
-            ]);
+            const eventArray = chunk.event.split('_');
+            const eventName = eventArray[0];
+            const agnetName = eventArray[1];
+
+            if (eventName === 'NOTIFICATION') {
+              const { status, metadata } = JSON.parse(chunk.data);
+              const curState = status.state.toUpperCase() as string;
+              const stateText = TaskState[curState as keyof typeof TaskState];
+
+              if (curState === 'SUBMITTED') {
+                curItem = {
+                  key: `${agnetName}-${Date.now()}`,
+                  title: agnetName,
+                  description: agnetName,
+                  content: <GPTVis>{runningContent}</GPTVis>,
+                  status: 'pending',
+                };
+                runningModalRef.current?.addItem(curItem);
+              }
+              if (curState === 'COMPLETED') {
+                runningModalRef.current?.updateItemStatus(
+                  curItem.key as string,
+                  'success',
+                );
+                curItem = null;
+                runningContent = '';
+              }
+              setNotification(
+                <LoadingOutlined />,
+                `智能体：${metadata.agentName} 状态：${stateText}`,
+              );
+              continue;
+            }
+            if (eventName === 'RUNNING' && curItem) {
+              runningContent += JSON.parse(chunk.data).text;
+              runningModalRef.current?.updateItemContent(
+                curItem.key as string,
+                runningContent,
+              );
+              continue;
+            }
           }
-          // console.log('subStream', chunk);
+          // console.log(chunk);
         }
         // 处理 subStream，例如订阅通知
       } catch (error) {
-        setNotificationMsg([
-          {
-            key: 'message',
-            icon: <EuroCircleFilled />,
-            label: `智能体出错了`,
-          },
-        ]);
+        setNotification(<EuroCircleFilled />, `智能体出错了`);
+        runningModalRef.current?.updateItemStatus(
+          curItem.key as string,
+          'error',
+        );
       }
     }
   };
@@ -346,18 +448,11 @@ export default () => {
     Record<string, any>
   >({
     request: async (requestMessage, { onSuccess, onError, onUpdate }) => {
-      setNotificationMsg([
-        {
-          key: 'message',
-          icon: <LoadingOutlined />,
-          label: `智能体工作中...`,
-        },
-      ]);
-
-      notification(requestMessage.message).catch((error) => {
-        console.error('通知处理失败:', error);
-      });
-
+      setNotification(<LoadingOutlined />, `智能体工作中(点击查看)...`);
+      runningModalRef.current?.setItemClear();
+      handleSseMessages(requestMessage.message).catch((error) =>
+        console.error('通知处理失败:', error),
+      );
       try {
         setIsRequesting(true);
         if (sendTypeRef.current === 'stream') {
@@ -367,7 +462,6 @@ export default () => {
           });
 
           let text = '';
-          setIsRequesting(false); // 流结束时设置为 false
           for await (const chunk of XStream({
             readableStream: responseStream,
           })) {
@@ -394,21 +488,9 @@ export default () => {
               }
               onUpdate(curMsg);
             });
-            // 如果 metadata.finishReason 直接返回的内容，有可能有错误，或者需要用户输入
-            if (
-              (metadata.finishReason && metadata.finishReason === 'STOP') ||
-              !metadata.finishReason
-            ) {
-              setIsRequesting(false); // 流结束时设置为 false
-              setNotificationMsg([
-                {
-                  key: 'message',
-                  icon: <CheckOutlined />,
-                  label: `智能体工作完成。`,
-                },
-              ]);
-            }
           }
+          setIsRequesting(false); // 流结束时设置为 false
+          setNotification(<CheckOutlined />, `智能体工作完成。(点击查看)`);
         }
         if (sendTypeRef.current === 'call') {
           // call请求
@@ -419,13 +501,7 @@ export default () => {
           if (response.code === 0) {
             const { data: newMessage } = response;
             onSuccess([{ ...newMessage.result, typing: true }]);
-            setNotificationMsg([
-              {
-                key: 'message',
-                icon: <CheckOutlined />,
-                label: `智能体工作完成。`,
-              },
-            ]);
+            setNotification(<CheckOutlined />, `智能体工作完成。(点击查看)`);
             return;
           }
           message.error(response.msg);
@@ -495,11 +571,18 @@ export default () => {
     },
   });
 
-  const handelClear = () => {
+  /**
+   * 清理输入消息
+   */
+  const handelInputClear = () => {
     setInputText('');
     setAttachment(undefined);
   };
-  // Sender 控件发送数据处理
+
+  /**
+   * 发送消息
+   * @param content
+   */
   const handleSendMessage = async (content: string) => {
     const parts: API.Part[] = [];
     const textPart = { type: 'text' as API.PartType, text: content };
@@ -517,7 +600,7 @@ export default () => {
       },
     };
     onRequest(conversationMessage);
-    handelClear();
+    handelInputClear();
   };
 
   /**
@@ -633,7 +716,7 @@ export default () => {
     },
   });
 
-  // 输入控件头
+  // 输入控件定义
   const headerNode = (
     <Sender.Header
       title={
@@ -699,7 +782,7 @@ export default () => {
                     ...message,
                   }))}
                 />
-                <Prompts items={notificationMsg} />
+                <Prompts items={prompts} onItemClick={hanldePromptClick} />
                 <Sender
                   value={inputText}
                   onChange={setInputText}
@@ -728,7 +811,7 @@ export default () => {
                           </Button>
                         </Flex>
                         <Flex align="center">
-                          <ClearButton onClick={handelClear} />
+                          <ClearButton onClick={handelInputClear} />
                           <Attachments
                             beforeUpload={() => false}
                             onChange={async ({
@@ -766,7 +849,7 @@ export default () => {
                           <Divider type="vertical" />
                           <SpeechButton />
                           <Divider type="vertical" />
-                          {loading ? (
+                          {isRequesting ? (
                             <LoadingButton type="default" />
                           ) : (
                             <SendButton type="primary" disabled={false} />
@@ -801,7 +884,11 @@ export default () => {
           </Flex>
         </XProvider>
       </Card>
-
+      <RunningModal
+        ref={runningModalRef}
+        modalVisible={runningModalShow}
+        onCancel={() => setRunningModalShow(false)}
+      ></RunningModal>
       <TaskTableModal ref={taskTableModalRef} tasks={curTasks}></TaskTableModal>
     </>
   );

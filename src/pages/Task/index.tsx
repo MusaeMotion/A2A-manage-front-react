@@ -220,7 +220,7 @@ const TableList: React.FC<unknown> = () => {
           onCancel={() => handleTaskClick(null, false)}
         >
           <ProDescriptions
-            column={2}
+            column={5}
             layout="vertical"
             title="详细信息"
             size="small"
