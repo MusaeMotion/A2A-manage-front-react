@@ -35,9 +35,8 @@ const renderDescription = (part: API.Part) => {
       return (
         <iframe
           srcDoc={part.data['html']}
-          width="1000px"
-          height="500px"
           title="嵌入的页面"
+          style={{ border: 'none', width: '100%', height: '500px' }}
           sandbox="allow-same-origin allow-scripts allow-popups"
         />
       );
