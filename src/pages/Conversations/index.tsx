@@ -375,6 +375,7 @@ export default () => {
     return (
       <Space direction="vertical" size="middle">
         <List
+          style={{ width: '900px' }}
           itemLayout="horizontal"
           dataSource={dataAndFileParts}
           renderItem={(part) => (
