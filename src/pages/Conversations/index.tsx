@@ -1,5 +1,7 @@
+/* eslint-disable @typescript-eslint/no-loop-func */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import TaskTableModal from '@/components/TaskTableModal';
+import { renderDescription } from '@/components/TaskTableModal/TaskUtitl';
 import chat from '@/services/chat';
 import conversations from '@/services/conversations';
 import {
@@ -44,6 +46,7 @@ import {
   Flex,
   GetProp,
   Image,
+  List,
   message,
   Modal,
   Radio,
@@ -202,6 +205,7 @@ const partToContent = (part: API.Part) => {
   }
   if (part.type === 'data') {
     // data 类型一般有表单或者其他内容
+    console.log('partToContent', part);
     return part.data;
   }
   return '没有找到合适的处理类型';
@@ -346,8 +350,37 @@ export default () => {
     if (task === undefined || task.length === 0) {
       return null;
     }
+    const artifacts = task[0].artifacts || [];
+    const dataAndFileParts = artifacts.flatMap((artifact) =>
+      artifact.parts.filter(
+        (part) => part.type === 'data' || part.type === 'file',
+      ),
+    );
+    if (dataAndFileParts.length === 0) {
+      return (
+        <Space>
+          <Button
+            type="link"
+            icon={<AppstoreOutlined />}
+            onClick={() => {
+              setCurTasks(task);
+              showTaskModal();
+            }}
+          >
+            任务详情
+          </Button>
+        </Space>
+      );
+    }
     return (
-      <Space>
+      <Space direction="vertical" size="middle">
+        <List
+          itemLayout="horizontal"
+          dataSource={dataAndFileParts}
+          renderItem={(part) => (
+            <List.Item>{renderDescription(part)}</List.Item>
+          )}
+        />
         <Button
           type="link"
           icon={<AppstoreOutlined />}
@@ -405,12 +438,28 @@ export default () => {
                 runningModalRef.current?.addItem(curItem);
               }
               if (curState === 'COMPLETED') {
-                runningModalRef.current?.updateItemStatus(
-                  curItem.key as string,
-                  'success',
-                );
-                curItem = null;
-                runningContent = '';
+                if (runningContent === '') {
+                  runningContent += '该智能体未推送运行信息';
+                  runningModalRef.current?.updateItemContent(
+                    curItem.key as string,
+                    runningContent,
+                    () => {
+                      runningModalRef.current?.updateItemStatus(
+                        curItem.key as string,
+                        'success',
+                      );
+                      curItem = null;
+                      runningContent = '';
+                    },
+                  );
+                } else {
+                  runningModalRef.current?.updateItemStatus(
+                    curItem.key as string,
+                    'success',
+                  );
+                  curItem = null;
+                  runningContent = '';
+                }
               }
               setNotification(
                 <LoadingOutlined />,

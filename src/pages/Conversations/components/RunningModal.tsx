@@ -2,16 +2,27 @@ import type { ThoughtChainItem, ThoughtChainProps } from '@ant-design/x';
 import { ThoughtChain } from '@ant-design/x';
 import { GPTVis } from '@antv/gpt-vis';
 import { Card, Empty, Modal } from 'antd';
-import { forwardRef, useImperativeHandle, useState } from 'react';
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react';
 
 interface RunningModalProps {
   modalVisible: boolean;
   onCancel: () => void;
 }
-
+// 定义回调函数的类型
+type CallbackFunction = () => void;
 export interface RunningModalRef {
   addItem: (newItem: ThoughtChainItem) => void;
-  updateItemContent: (key: string, newContent: string) => void;
+  updateItemContent: (
+    key: string,
+    newContent: string,
+    callback?: CallbackFunction,
+  ) => void;
   updateItemStatus: (
     key: string,
     status: 'pending' | 'success' | 'error',
@@ -24,7 +35,7 @@ const RunningModal = forwardRef<RunningModalRef, RunningModalProps>(
     const { modalVisible, onCancel } = props;
     const [items, setItems] = useState<ThoughtChainItem[]>([]);
     const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
-
+    const callbackRef = useRef<CallbackFunction | null>(undefined);
     // 动态添加 item
     const addItem = (newItem: ThoughtChainItem) => {
       setItems([...items, newItem]);
@@ -33,7 +44,12 @@ const RunningModal = forwardRef<RunningModalRef, RunningModalProps>(
     };
 
     // 动态更新 item 的 content
-    const updateItemContent = (key: string, newContent: string) => {
+    const updateItemContent = (
+      key: string,
+      newContent: string,
+      callback?: CallbackFunction,
+    ) => {
+      callbackRef.current = callback;
       setItems(
         items.map((item) =>
           item.key === key
@@ -42,6 +58,12 @@ const RunningModal = forwardRef<RunningModalRef, RunningModalProps>(
         ),
       );
     };
+    useEffect(() => {
+      if (callbackRef.current) {
+        callbackRef.current();
+        callbackRef.current = null; // 清空回调函数
+      }
+    }, [items]);
     // 动态更新 item 的 content
     const updateItemStatus = (
       key: string,
