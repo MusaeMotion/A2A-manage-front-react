@@ -19,7 +19,10 @@
     "@types/markdown-it": "^14.1.2",
     "@umijs/max": "^4.4.10",
     "antd": "^5.24.9",
+    "dompurify": "^3.2.6",
     "markdown-it": "^14.1.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
     "uuid": "^11.1.0"
   },
   "devDependencies": {
