@@ -1,11 +1,45 @@
+/* eslint-disable no-case-declarations */
 import {
   BookOutlined,
   DatabaseOutlined,
+  DownloadOutlined,
   FileTextOutlined,
 } from '@ant-design/icons';
-import { Form, Image, Input, List, Table, Tag } from 'antd';
+import { Button, Form, Image, Input, List, Table, Tag } from 'antd';
 // import DOMPurify from 'dompurify';
 // TODO import DOMPurify from 'dompurify'; 后面可以增加该组件过滤风险内容。
+
+// 将Base64字符串还原为文件并下载
+const downloadFile = (base64String: string) => {
+  if (!base64String) {
+    console.error('Base64字符串为空');
+    return;
+  }
+  try {
+    // 解码Base64字符串
+    const byteCharacters = atob(base64String);
+    const byteNumbers = new Array(byteCharacters.length);
+
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: 'application/zip' });
+
+    // 创建一个下载链接
+    const downloadUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = 'downloaded-file.xlsx'; // 设置文件名为.xlsx
+    link.click();
+
+    // 释放对象URL
+    URL.revokeObjectURL(downloadUrl);
+  } catch (error) {
+    console.error('解码Base64字符串失败:', error);
+  }
+};
 
 const renderTitle = (type: string) => {
   if (type === 'text') return <Tag icon={<BookOutlined />}>文本</Tag>;
@@ -29,52 +63,64 @@ const renderDescription = (part: API.Part) => {
     if (!part.data) {
       return '没有数据内容';
     }
-    if ('html' in part.data) {
-      // const cleanHtmlContent = DOMPurify.sanitize(part.data['html']);
-      // console.log('cleanHtmlContent', cleanHtmlContent)
-      return (
-        <iframe
-          srcDoc={part.data['html']}
-          title="嵌入的页面"
-          style={{ border: 'none', width: '100%', height: '500px' }}
-          sandbox="allow-same-origin allow-scripts allow-popups"
-        />
-      );
-    } else if ('form' in part.data) {
-      // 假设 form 数据是一个表单对象，这里简单地渲染一个表单
-      return (
-        <Form>
-          {Object.keys(part.data['form']).map((field, index) => (
-            <Form.Item label={field} key={index}>
-              <Input name={field} />
-            </Form.Item>
-          ))}
-        </Form>
-      );
-    } else {
-      // 其他数据类型，使用 Table 组件展示
-      const columns = [
-        {
-          title: '字段',
-          dataIndex: 'field',
-          key: 'field',
-        },
-        {
-          title: '值',
-          dataIndex: 'value',
-          key: 'value',
-        },
-      ];
+    switch (true) {
+      case 'html' in part.data:
+        return (
+          <iframe
+            srcDoc={part.data['html']}
+            title="嵌入的页面"
+            style={{ border: 'none', width: '100%', height: '500px' }}
+            sandbox="allow-same-origin allow-scripts allow-popups"
+          />
+        );
+      case 'xlsx' in part.data:
+        const xlsxBase64 = part.data.xlsx;
+        // console.log('xlsxBase64', xlsxBase64)
+        return (
+          <Button
+            type="primary"
+            onClick={() => downloadFile(xlsxBase64)}
+            icon={<DownloadOutlined />}
+          >
+            点击下载
+          </Button>
+        );
+      // eslint-disable-next-line no-duplicate-case
+      case 'form' in part.data:
+        // 假设 form 数据是一个表单对象，这里简单地渲染一个表单
+        return (
+          <Form>
+            {Object.keys(part.data['form']).map((field, index) => (
+              <Form.Item label={field} key={index}>
+                <Input name={field} />
+              </Form.Item>
+            ))}
+          </Form>
+        );
+      default:
+        // 其他数据类型，使用 Table 组件展示
+        const columns = [
+          {
+            title: '字段',
+            dataIndex: 'field',
+            key: 'field',
+          },
+          {
+            title: '值',
+            dataIndex: 'value',
+            key: 'value',
+          },
+        ];
 
-      const dataSource = Object.entries(part.data).map(
-        ([key, value], index) => ({
-          key: index,
-          field: key,
-          value: value,
-        }),
-      );
+        const dataSource = Object.entries(part.data).map(
+          ([key, value], index) => ({
+            key: index,
+            field: key,
+            value: value,
+          }),
+        );
 
-      return <Table columns={columns} dataSource={dataSource} />;
+        return <Table columns={columns} dataSource={dataSource} />;
     }
   } else {
     return '未知类型';

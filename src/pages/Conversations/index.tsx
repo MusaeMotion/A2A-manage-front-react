@@ -250,7 +250,7 @@ export default () => {
   const [runningModalShow, setRunningModalShow] =
     React.useState<boolean>(false);
   const runningModalRef = React.useRef<RunningModalRef>(null);
-
+  const [modal, contextHolder] = Modal.useModal();
   // 初始化对话列表
   React.useEffect(() => {
     const loadConversations = async () => {
@@ -706,14 +706,14 @@ export default () => {
       },
     ],
     onClick: async (menuInfo) => {
-      menuInfo.domEvent.stopPropagation(); // 阻止事件冒泡
+      menuInfo.domEvent.stopPropagation();
+      // 阻止事件冒泡
       if (menuInfo.key === 'delete') {
-        Modal.confirm({
+        modal.confirm({
           title: '确认删除',
           content: '确定要删除此交谈吗？',
           onOk: async () => {
             setLoading(true);
-            menuInfo.domEvent.stopPropagation(); // 阻止事件冒泡
             try {
               const response = await deleteConversation(conversation.key);
               if (response.code === 0) {
@@ -736,7 +736,7 @@ export default () => {
         });
       }
       if (menuInfo.key === 'delete_other') {
-        Modal.confirm({
+        modal.confirm({
           title: '确认删除',
           content: '确定要删除此记录吗？',
           onOk: async () => {
@@ -940,6 +940,7 @@ export default () => {
         onCancel={() => setRunningModalShow(false)}
       ></RunningModal>
       <TaskTableModal ref={taskTableModalRef} tasks={curTasks}></TaskTableModal>
+      {contextHolder}
     </>
   );
 };
