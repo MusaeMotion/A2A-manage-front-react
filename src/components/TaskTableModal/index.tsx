@@ -1,7 +1,11 @@
 import type { TableProps } from 'antd';
 import { Modal, Table } from 'antd';
 import React from 'react';
-import { renderArtifacts, renderMessage } from './TaskUtitl';
+import {
+  renderArtifacts,
+  renderCalculateAmount,
+  renderMessage,
+} from './TaskUtitl';
 const AGENT_NAME: string = 'agentName';
 
 interface Props {
@@ -13,7 +17,7 @@ const columns: TableProps<API.TaskInfo>['columns'] = [
     title: '智能体名称',
     dataIndex: 'agentName',
     key: 'agentName',
-    width: 100,
+    width: 200,
     render: (_, record) => record.metadata[AGENT_NAME],
   },
   {
@@ -25,14 +29,18 @@ const columns: TableProps<API.TaskInfo>['columns'] = [
   {
     title: '请求',
     key: 'status.message',
-    width: 300,
     render: (_, record) => renderMessage(record),
   },
   {
     title: '响应内容',
     dataIndex: 'artifacts',
-    width: 300,
     render: (_, record) => renderArtifacts(record.artifacts),
+  },
+  {
+    title: '耗用',
+    dataIndex: 'tokens',
+    width: 100,
+    render: (_, record) => renderCalculateAmount(record.metadata),
   },
 ];
 

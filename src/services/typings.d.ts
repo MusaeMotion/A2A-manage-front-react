@@ -51,6 +51,7 @@ declare namespace API {
     metadata?: Record<string, any>;
     typing?: boolean;
     task?: TaskInfo[];
+    amount?: number;
     // 状态
     status?: string;
   }
