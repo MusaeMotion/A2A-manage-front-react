@@ -1,7 +1,11 @@
 /* eslint-disable @typescript-eslint/no-loop-func */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import TaskTableModal from '@/components/TaskTableModal';
-import { renderDescription } from '@/components/TaskTableModal/TaskUtitl';
+import {
+  formatMoneyFromYuan,
+  renderCalculateAmount,
+  renderDescription,
+} from '@/components/TaskTableModal/TaskUtitl';
 import chat from '@/services/chat';
 import conversations from '@/services/conversations';
 import {
@@ -51,6 +55,7 @@ import {
   Modal,
   Radio,
   Space,
+  Tag,
   Typography,
   UploadProps,
 } from 'antd';
@@ -342,11 +347,35 @@ export default () => {
       setRunningModalShow(true);
     }
   };
+
   /**
-   * 构建消息footer
-   * @param task
+   * 构建消息底部任务信息
    */
-  const buidlMessageFooter = (task: API.TaskInfo[] | undefined) => {
+  const buildTaskSummaryToken = (task: API.TaskInfo[] | undefined) => {
+    let totalTokens = 0;
+    let totalAmount = 0;
+    task?.forEach((item) => {
+      if (item.metadata?.total_tokens) {
+        totalTokens += item.metadata?.total_tokens;
+      }
+      if (item.metadata?.total_amount) {
+        totalAmount += item.metadata?.total_amount;
+      }
+    });
+    return (
+      <>
+        <Tag color="blue">任务耗用 Token：{totalTokens}</Tag>
+        <Tag color="red">任务费用：{formatMoneyFromYuan(totalAmount)}</Tag>
+      </>
+    );
+  };
+
+  /**
+   * 构建脚部任务按钮
+   * @param task
+   * @returns
+   */
+  const buildMessageFooterTask = (task: API.TaskInfo[] | undefined) => {
     if (task === undefined || task.length === 0) {
       return null;
     }
@@ -356,34 +385,11 @@ export default () => {
         (part) => part.type === 'data' || part.type === 'file',
       ),
     );
-    if (dataAndFileParts.length === 0) {
-      return (
-        <Space>
-          <Button
-            type="link"
-            icon={<AppstoreOutlined />}
-            onClick={() => {
-              setCurTasks(task);
-              showTaskModal();
-            }}
-          >
-            任务详情
-          </Button>
-        </Space>
-      );
-    }
-    return (
-      <Space direction="vertical" size="middle">
-        <List
-          style={{ width: '900px' }}
-          itemLayout="horizontal"
-          dataSource={dataAndFileParts}
-          renderItem={(part) => (
-            <List.Item>{renderDescription(part)}</List.Item>
-          )}
-        />
+    const taskButton = (
+      <Space>
         <Button
-          type="link"
+          color="primary"
+          variant="outlined"
           icon={<AppstoreOutlined />}
           onClick={() => {
             setCurTasks(task);
@@ -392,6 +398,37 @@ export default () => {
         >
           任务详情
         </Button>
+        {buildTaskSummaryToken(task)}
+      </Space>
+    );
+    if (dataAndFileParts.length === 0) {
+      return taskButton;
+    }
+    return (
+      <>
+        <List
+          style={{ width: '900px' }}
+          itemLayout="horizontal"
+          dataSource={dataAndFileParts}
+          renderItem={(part) => (
+            <List.Item>{renderDescription(part)}</List.Item>
+          )}
+        />
+        {taskButton}
+      </>
+    );
+  };
+
+  /**
+   * 构建消息脚部
+   * @param message
+   * @returns
+   */
+  const buidlMessageFooter = (message: ConversationMessage) => {
+    return (
+      <Space direction="vertical" size="middle">
+        {renderCalculateAmount(message.metadata)}
+        {buildMessageFooterTask(message.task)}
       </Space>
     );
   };
@@ -516,7 +553,7 @@ export default () => {
             readableStream: responseStream,
           })) {
             const responseData = JSON.parse(chunk.data);
-            const { metadata, parts, task } = responseData.result;
+            const { metadata, parts, task, amount } = responseData.result;
 
             // eslint-disable-next-line @typescript-eslint/no-loop-func
             parts.forEach((part: any) => {
@@ -526,6 +563,7 @@ export default () => {
                 metadata: metadata,
                 typing: false,
                 task: task,
+                amount: amount,
               };
               if (part.type === 'text') {
                 text += part.text;
@@ -612,7 +650,7 @@ export default () => {
               : {},
           typing: agentMessage.typing ? { step: 5, interval: 20 } : undefined,
           content: partToContent(part),
-          footer: buidlMessageFooter(agentMessage.task),
+          footer: buidlMessageFooter(agentMessage),
           status: agentMessage.status,
         }));
       }

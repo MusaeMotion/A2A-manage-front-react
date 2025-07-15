@@ -5,7 +5,7 @@ import {
   DownloadOutlined,
   FileTextOutlined,
 } from '@ant-design/icons';
-import { Button, Form, Image, Input, List, Table, Tag } from 'antd';
+import { Button, Form, Image, Input, List, Space, Table, Tag } from 'antd';
 // import DOMPurify from 'dompurify';
 // TODO import DOMPurify from 'dompurify'; 后面可以增加该组件过滤风险内容。
 
@@ -147,6 +147,63 @@ const renderPart = (parts: API.Part[] | undefined): any => {
     />
   );
 };
+/**
+ * 按最小可显示单元格式化金额（输入：元）
+ * @param {number} yuan 金额，单位：元
+ * @returns {string}   格式化后的字符串
+ */
+export function formatMoneyFromYuan(yuan: number) {
+  if (typeof yuan !== 'number' || Number.isNaN(yuan)) return '';
+
+  // 先转成“厘”再处理，彻底避免浮点误差
+  const li = Math.round(yuan * 1000);
+
+  // 1. 厘
+  if (li < 10) {
+    return `${li} 厘`;
+  }
+
+  // 2. 分
+  if (li < 100) {
+    return `${Math.round(li / 10)} 分`;
+  }
+
+  // 3. 角
+  if (li < 1000) {
+    return `${Math.round(li / 100)} 角`;
+  }
+
+  // 4. 元
+  return `${(li / 1000).toFixed(2).replace(/\.00$/, '')} 元`;
+}
+/**
+ * 计算费用
+ * @param data
+ * @returns
+ */
+const renderCalculateAmount = (
+  metadata: Record<string, any> | undefined,
+): any => {
+  if (metadata?.total_amount) {
+    return (
+      <Space size={[8, 16]} wrap>
+        <Tag>该消息输入 Token：{metadata?.prompt_tokens}</Tag>
+        <Tag color="red">
+          输入费用：{formatMoneyFromYuan(metadata?.prompt_tokens_amount)}
+        </Tag>
+        <Tag>该消息输出 Token：{metadata?.completion_tokens}</Tag>
+        <Tag color="red">
+          输出费用：{formatMoneyFromYuan(metadata?.completion_tokens_amount)}
+        </Tag>
+        <Tag color="blue">总耗用 Token：{metadata?.total_tokens}</Tag>
+        <Tag color="red">
+          总费用：{formatMoneyFromYuan(metadata?.total_amount)}
+        </Tag>
+      </Space>
+    );
+  }
+  return <></>;
+};
 
 /**
  * 添加节点
@@ -210,4 +267,9 @@ const renderMessage = (record: any): any => {
   // submitted, working, input-required.... 都是读取 record.status.message, 这样完成和未完成两个状态数据结构分离开了，并且不同状态存储不一样，这样就减少冗余存储
   return renderPart(record.status.message.parts);
 };
-export { renderArtifacts, renderDescription, renderMessage };
+export {
+  renderArtifacts,
+  renderCalculateAmount,
+  renderDescription,
+  renderMessage,
+};
