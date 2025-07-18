@@ -1,7 +1,7 @@
 import type { ThoughtChainItem, ThoughtChainProps } from '@ant-design/x';
 import { ThoughtChain } from '@ant-design/x';
-import { GPTVis } from '@antv/gpt-vis';
 import { Card, Empty, Modal } from 'antd';
+import markdownit from 'markdown-it';
 import {
   forwardRef,
   useEffect,
@@ -10,6 +10,8 @@ import {
   useState,
 } from 'react';
 
+// @ts-ignore
+const md = markdownit({ html: true, breaks: true });
 interface RunningModalProps {
   modalVisible: boolean;
   onCancel: () => void;
@@ -53,7 +55,14 @@ const RunningModal = forwardRef<RunningModalRef, RunningModalProps>(
       setItems(
         items.map((item) =>
           item.key === key
-            ? { ...item, content: <GPTVis>{newContent}</GPTVis> }
+            ? {
+                ...item,
+                content: (
+                  <div
+                    dangerouslySetInnerHTML={{ __html: md.render(newContent) }}
+                  />
+                ),
+              }
             : item,
         ),
       );

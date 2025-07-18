@@ -158,19 +158,17 @@ export function formatMoneyFromYuan(yuan: number) {
   // 先转成“厘”再处理，彻底避免浮点误差
   const li = Math.round(yuan * 1000);
 
-  // 1. 厘
+  // 1 厘 = 10 个“万分之一元”
   if (li < 10) {
-    return `${li} 厘`;
+    return `${li.toFixed(1).replace(/\.0$/, '')} 厘`;
   }
-
-  // 2. 分
+  // 1 分 = 100 个“万分之一元”
   if (li < 100) {
-    return `${Math.round(li / 10)} 分`;
+    return `${(li / 10).toFixed(1).replace(/\.0$/, '')} 分`;
   }
-
-  // 3. 角
+  // 1 角 = 1000 个“万分之一元”
   if (li < 1000) {
-    return `${Math.round(li / 100)} 角`;
+    return `${(li / 100).toFixed(1).replace(/\.0$/, '')} 角`;
   }
 
   // 4. 元
