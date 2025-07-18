@@ -462,9 +462,14 @@ export default () => {
 
             if (eventName === 'NOTIFICATION') {
               const { status, metadata } = JSON.parse(chunk.data);
-              const curState = status.state.toUpperCase() as string;
+              let curState = status.state.toUpperCase() as string;
+              // 转换成下划线
+              if (curState === 'INPUT-REQUIRED') {
+                curState = curState.replace('-', '_');
+              }
               const stateText = TaskState[curState as keyof typeof TaskState];
-
+              console.log('curState::::', curState);
+              console.log('stateText::::', stateText);
               if (curState === 'SUBMITTED') {
                 curItem = {
                   key: `${agnetName}-${Date.now()}`,
@@ -499,6 +504,21 @@ export default () => {
                   runningContent = '';
                 }
               }
+              if (curState === 'INPUT_REQUIRED') {
+                runningContent += '智能体需要您提供更多信息';
+                runningModalRef.current?.updateItemContent(
+                  curItem.key as string,
+                  runningContent,
+                  () => {
+                    runningModalRef.current?.updateItemStatus(
+                      curItem.key as string,
+                      'error',
+                    );
+                    curItem = null;
+                    runningContent = '';
+                  },
+                );
+              }
               setNotification(
                 <LoadingOutlined />,
                 `智能体：${metadata.agentName} 状态：${stateText}`,
@@ -506,6 +526,7 @@ export default () => {
               continue;
             }
             if (eventName === 'RUNNING' && curItem) {
+              console.log('chunk.data::::', chunk.data);
               runningContent += JSON.parse(chunk.data).text;
               runningModalRef.current?.updateItemContent(
                 curItem.key as string,
