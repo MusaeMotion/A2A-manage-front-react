@@ -6,7 +6,7 @@
 export async function getInitialState(): Promise<{ name: string }> {
   return { name: '位元灵感'  };
 }*/
-
+import '@ant-design/v5-patch-for-react-19';
 export const layout = () => {
   return {
     logo: 'https://oss.musaemotion.com/logo500.png',

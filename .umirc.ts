@@ -41,6 +41,12 @@ export default defineConfig({
       component: './HostAgentSetting',
       icon: 'SettingOutlined',
     },
+    {
+      name: 'Mcp智能体',
+      path: '/mcp-agent',
+      component: './McpServer',
+      icon: 'AppstoreOutlined',
+    },
   ],
   npmClient: 'pnpm',
   mock: false,
@@ -50,6 +56,13 @@ export default defineConfig({
       changeOrigin: true,
       pathRewrite: {
         '^/api': '/api',
+      },
+    },
+    '/mcp': {
+      target: 'http://127.0.0.1:9992',
+      changeOrigin: true,
+      pathRewrite: {
+        '^/mcp': '/api',
       },
     },
   },
