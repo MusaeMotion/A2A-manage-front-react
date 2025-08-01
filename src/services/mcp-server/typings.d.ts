@@ -15,6 +15,7 @@ declare namespace API {
     description: string;
     displayName: string;
     mcpConfig: any;
+    enable?: boolean;
   }
 
   type PartialMcpServerInfo = Partial<McpServerInfo>;

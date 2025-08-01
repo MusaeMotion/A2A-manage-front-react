@@ -84,7 +84,7 @@ const TableList: React.FC<unknown> = () => {
   return (
     <PageContainer
       header={{
-        title: '智能体注册中心',
+        title: 'HostAgent配置',
       }}
     >
       <Tabs
@@ -94,11 +94,7 @@ const TableList: React.FC<unknown> = () => {
             label: '提示词设置',
             key: 'prompt',
             children: (
-              <Form
-                labelCol={{ span: 1 }}
-                wrapperCol={{ span: 14 }}
-                layout="horizontal"
-              >
+              <Form labelCol={{ span: 2 }} layout="horizontal">
                 <Form.Item label="系统提示词">
                   <TextArea
                     rows={50}
