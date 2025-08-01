@@ -179,7 +179,6 @@ const TableList: React.FC<unknown> = () => {
       title: 'MCP配置',
       dataIndex: 'mcpConfig',
       valueType: 'text',
-      width: 800,
       search: false,
       render: (text, record) => {
         return (

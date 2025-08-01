@@ -575,7 +575,7 @@ export default () => {
           })) {
             const responseData = JSON.parse(chunk.data);
             const { metadata, parts, task, amount } = responseData.result;
-
+            // console.log('responseData',responseData)
             // eslint-disable-next-line @typescript-eslint/no-loop-func
             parts.forEach((part: any) => {
               const curMsg: ConversationMessage = {
@@ -588,6 +588,7 @@ export default () => {
               };
               if (part.type === 'text') {
                 text += part.text;
+
                 const tempPart = {
                   type: 'text' as API.PartType,
                   metadata: {},

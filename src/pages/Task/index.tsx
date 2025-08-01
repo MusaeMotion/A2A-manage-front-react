@@ -57,7 +57,6 @@ const TableList: React.FC<unknown> = () => {
   };
   const location = useLocation();
   const state = (location.state as SearchState) || ({} as SearchState);
-  console.log('search', state.conversationId);
   const columns: ProColumns<API.TaskInfo>[] = [
     {
       title: '任务id',
