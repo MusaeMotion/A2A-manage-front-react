@@ -38,7 +38,7 @@ declare namespace API {
     metadata?: Record<string, any>;
   }
   // 交谈消息部分
-  interface FileContent extends ContentType {
+  interface FileContent {
     name?: string;
     uri?: string;
     bytes?: string;
