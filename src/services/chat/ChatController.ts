@@ -25,6 +25,8 @@ export async function sendMessageStream(
   const postDataString = JSON.stringify(body);
   const headers = new Headers();
   headers.append('Content-Type', 'application/json');
+  // 测试透传请求头
+  headers.append('Authorization', 'test-token');
   const response = await fetch(`${BASE_URL}/stream`, {
     method: 'POST',
     headers: headers,
@@ -52,6 +54,8 @@ export async function subscribeNotification(
 ): Promise<ReadableStream> {
   const headers = new Headers();
   headers.append('Content-Type', 'application/json');
+  // 测试透传请求头
+  headers.append('Authorization', 'test-token');
   const response = await fetch(
     `${BASE_URL}/notification/${conversationId}/${inputMessageId}`,
     {
